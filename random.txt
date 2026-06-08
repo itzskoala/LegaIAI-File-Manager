@@ -1,0 +1,63 @@
+"...to indentify key information" 
+    => Party names, document type, execution dates, subject matter
+ -What does this mean? 
+    -> Read the plain text of each file after the Injestion Layer 
+        (Injestion layer should have already put every file type into a plain .txt file)
+        -> Is there a way to have an AI VOID important information before the AI extraction layer?
+            -> Doesn't make sense...Plus we need this infomration to make summarys/parse for later layers
+        -> Injestion layer: parse metadata, "key information", create a SUMMARY, 
+            -> Uses the Json schema in config.Json
+
+AI extraction layer:
+    Ollama (is free and greater level of data security)
+    Do we need Ollama doing this? 
+    What does the AI really need to be doing here? 
+        -> Just needs to parse metadata along with information in the acutal document  
+            -> "parse metadata", how can the AI see the actual details of the document
+                -> is metadata actually the details about the file itself or the content of the article? 
+        -> How can we prevent the program from thinking every file is two unique and putting into seperate locations?
+            -> maybe just have a seperate layer for this because files/dirs should be reorganized only after the confidence check 
+                -> remember filing uses GraphAPI 
+                -> Call this layer Placement Layer
+        -> 
+
+
+
+        I should create a demo first on my own OneDrive/Personal, just to make sure this works...!
+        Azure functions
+        Who else can I verify this with?
+            -> What other SWE's can I hablar contigo????
+
+
+
+Confidence Check?
+    -> Another AI reviewers .... what?
+        -> Does the summary make sense?
+        -> Is the stuctured output correct?
+        -> Does every key have a value?
+    -> Create a scoring schema/system...
+    -> if passed then move onto the Placement Layer?
+        -> rename file according to schema or tbh we could just configure 
+
+
+
+
+    -> Is there a way to reduce the workload of the AI? So it doesn't need to be as smart + is realiable???
+
+
+
+for the database part -> use SQL (research what does it, ect...)
+
+Microsoft Azure as a cloud service + can it automate tasks for me? 
+
+
+First steps would probably be?/What is the actual MVP/SLC?
+
+-> Connect to Microsoft Sharepoint/ Email
+-> Grab all the contracts...
+
+
+
+https://www.youtube.com/watch?v=EZyKl8JySmY
+
+
