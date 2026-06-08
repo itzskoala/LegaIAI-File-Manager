@@ -1,0 +1,41 @@
+{
+    "name": "extract_document_details",
+    "description": "Extract structured metadata from a legal document including type, parties, key terms, and date. Give the document a name according to a standardized naming convention.",
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "name_of_document": {
+                "type": "string",
+                "description": "Name of file according to a standardized naming convention"
+            },
+            "document_type": {
+                "type": "string",
+                "description": "The type of document e.g. NDA, MSA, Agreement, Contract"
+            },
+            "parties": {
+                "type": "array",
+                "items": {"type": "string"},
+                "description": "List of names of the parties involved in the document"
+            },
+            "key_terms": {
+                "type": "array",
+                "items": {"type": "string"},
+                "description": "List of important terms or clauses found in the document"
+            },
+            "date": {
+                "type": "string",
+                "description": "The date of the document in YYYY-MM-DD format if possible"
+            },
+            "short_description": {
+                "type": "string",
+                "description": "A one line summary of what this document is about"
+            },
+            "confidence": {
+                "type": "number",
+                "description": "Confidence score between 0 and 1 on the accuracy of the extraction"
+            }
+        },
+        "required": ["name_of_document", "document_type", "parties", "confidence", "date", "short_description"],
+        "additionalProperties": false
+    }
+}
