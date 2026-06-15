@@ -20,8 +20,8 @@ from PIL import Image
 from docx import Document
 from pdf2image import convert_from_path
 
-from BaseClass import DocumentSource
-from BaseClass import DocumentRecord
+from FileManager import DocumentSource
+from FileManager import DocumentRecord
 
 
 class UnsupportedFileTypeError(Exception):
