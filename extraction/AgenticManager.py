@@ -31,6 +31,24 @@ class AgenticManager(LocalFileSource):
             #-> The lowkey just use the BaseModel fields to piece it together ...
         #
 
+        #think file at a time
+        #I have all the text strcutred as text...from the pydantic object
+        # my only goal is to name the file
+        # name first, then strcutre the folders? hmmmm....Yeah I think that makes sense
+        # folder strucutre seems very basic 
+        # how do we do this 
+        # read the file with AI, ollama/claude fills in the fields accordingly 
+        # we need to verify? How? 
+        # concerns: reading the whole file for a naming convention feels like its too much?
+            # -> Is there an easier way to do this? 
+            # -> what do the job requiremnts say? vs. what do I think is better? 
+            # read a documnet to extract data to conform to a pydantic/strcutred output ...
+            # is there a way to do this without reading everything? Portions? 
+            # how to search for info with reading the entrie doc?
+            # as soon as you have all the info stop searching/scanning
+            # partial scan, prime the AI where to look
+            # 
+
         response = ollama.chat(
             model="gemma3",
             messages=[{
