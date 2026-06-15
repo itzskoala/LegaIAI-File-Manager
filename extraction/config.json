@@ -4,38 +4,37 @@
     "parameters": {
         "type": "object",
         "properties": {
-            "name_of_document": {
+            "counterparty": {
                 "type": "string",
-                "description": "Name of file according to a standardized naming convention"
+                "description": ["This should be the full legal entity name as stated in the preamble of the agreement.",
+                                "Avoid commonly used acronyms used in our industry unless obvious, e.g NPR. For individuals, use LastNameFirstName."]
             },
-            "document_type": {
+            "agreement_type": {
+                "type": "string" or "array",
+                "items": {"type": "string"},
+                "description": ["This is almost always the title at the top of the agreement.",
+                                "Sometimes two agreements are combined into one document, usually a governing agreement and sub-agreement such as a master services agreement and order form, or SOW. Name both agreements."]
+            },
+            "helpful_phrase": {
                 "type": "string",
-                "description": "The type of document e.g. NDA, MSA, Agreement, Contract"
+                "description": ["A one line summary of what this document is about. This can be very short and vary greatly depending on the services or relationship.",
+                                "But it can aid in indentifying contracts at a glance, and also distingiushing among several contracts with the same counterparty.",
+                                "It connects back to the counterparty in a meaningful way."]
             },
-            "parties": {
-                "type": "array",
-                "items": {"type": "string"},
-                "description": "List of names of the parties involved in the document"
-            },
-            "key_terms": {
-                "type": "array",
-                "items": {"type": "string"},
-                "description": "List of important terms or clauses found in the document"
+            "brand": {
+                "type": "string",
+                "description": "The APMG brand for which services are provided or revenue created. This is MPR, MPR News, LAist, The Current, YourClassical, Marketplace, or APM"
             },
             "date": {
                 "type": "string",
-                "description": "The date of the document in YYYY-MM-DD format if possible"
-            },
-            "short_description": {
-                "type": "string",
-                "description": "A one line summary of what this document is about"
+                "description": "The date of the document in YYYY-MM-DD format."
             },
             "confidence": {
                 "type": "number",
                 "description": "Confidence score between 0 and 1 on the accuracy of the extraction"
             }
         },
-        "required": ["name_of_document", "document_type", "parties", "confidence", "date", "short_description"],
+        "required": ["counterparty", "agreement_type", "helpful_phrase", "brand", "date", "confidence"],
         "additionalProperties": false
     }
 }

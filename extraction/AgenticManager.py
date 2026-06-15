@@ -1,8 +1,13 @@
 import ollama
+import json
 
-from LocalFileSource import LocalFileSource
+from sources_ingestion.FileManager import DocumentRecord, DocumentSource
+
+# from LocalFileSource import LocalFileSource
 # from EmailFileSource import EmailFileSource
 # from SharepointFileSource import SharepointFileSource
+
+from Schema import Schema
 
 #AI portion
 # this will take in strucutred output the Document Record obj
@@ -16,14 +21,27 @@ from LocalFileSource import LocalFileSource
 # going to try using Ollama/Claude?
 # 
 
-# tools = 
+def extra_context():
+    #code to call the next page of the document. feed back to ai_extraction, if still can't understand then go to the next page
+    #
 
-class AgenticManager(LocalFileSource):
-    def __init__(self, LocalFileSource):
-        # LocalFileSource
+#right down all the tools
+extra_context_tool = [{"type": "function", "function": extra_context()}]
 
-    def ai_extraction():
-        #for when we can't fall back and need to extract document details...
+#i could also give a serper.dev tool/internet lookup? maybe the tool could be the validiation somehow?
+
+class AgenticManager:
+    def __init__(self, source: DocumentSource):
+        #call the Baseclass so I don't have to individually call the children...!
+        self.source = source #stores the child obj
+
+    def process_all(self):
+        for doc in self.source.load_documents():
+            yield self.ai_extraction(doc)
+
+
+    def ai_extraction(self, doc: DocumentRecord) -> Schema:
+             #for when we can't fall back and need to extract document details...
         #most times we can tell where to put a document based off of its details 
         
         #or maybe we just actually have to do this for each doc...?
@@ -48,24 +66,36 @@ class AgenticManager(LocalFileSource):
             # as soon as you have all the info stop searching/scanning
             # partial scan, prime the AI where to look
             # 
+        text = doc.content
 
         response = ollama.chat(
             model="gemma3",
             messages=[{
                 "role": "user",
-                "content": f"Extract contract metadata from this document:\n\n{text[:4000]}"
+                "content": (
+                    f"Extract contract metadata from this document:\n\n{text}\n\n"
+                    "Conform to the schema as given in your format"
+                    "If you are unable to parse ALL the structured schema from the text"
+                    "of the document you MUST call the extra_context_tool."
+
+                    "Here are some examples of what we are expecting..."
+                    ""
+                )
             }],
-            format=ContractMetadata.model_json_schema()
+            format=Schema.model_json_schema(),
+            tools=[extra_context_tool]
         )
+
+
 
     def naming_convention():
         #The naming convention must be {Counterparty} - {AgreementType} - {Brand} ({YYYY-MM-DD}) ({Status}).{ext}
-
+        #use the schema object to contrsut the naming convention
         
 
-    def confidence_check():
-        #call another LLM?
-        #how else can we do a confidence check?
+    # def confidence_check():
+    #     #call another LLM?
+    #     #how else can we do a confidence check?
 
 
     
