@@ -20,8 +20,8 @@ from PIL import Image
 from docx import Document
 from pdf2image import convert_from_path
 
-from FileManager import DocumentSource
-from FileManager import DocumentRecord
+from .FileManager import DocumentSource
+from .FileManager import DocumentRecord
 
 
 class UnsupportedFileTypeError(Exception):
@@ -164,6 +164,7 @@ class LocalFileSource(DocumentSource):
             return "\n".join(p.text for p in doc.paragraphs)
         
         elif ext == ".doc":  #have the convert old MS word files to .docx typing
+            print("This is a doc")
             result = subprocess.run(["antiword", file_path], capture_output=True, text=True)
             if result.returncode != 0:
                 raise UnsupportedFileTypeError(f"antiword failed on {path.name}: {result.stderr.strip()}")

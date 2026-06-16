@@ -1,5 +1,5 @@
 from typing import Union, List
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 #for contracts but keep in mind that every document can be different doesn't fit this schema
 #QUESTION: DO ALL DOCUMENTS HAVE THE SAME SCHEMA!?
@@ -29,10 +29,25 @@ class Schema(BaseModel):
     )
     date: str = Field(
         description="The date of the document in YYYY-MM-DD format."
+        #TODO: this is incorrect
     )
-    confidence: float = Field(
-        ge=0, le=1,
-        description="Confidence score between 0 and 1 on the accuracy of the extraction."
-    )
-    version: str = "v1.0 FE"       # always tagged on the end of the file name
+    # confidence: float = Field(
+    #     ge=0, le=1,
+    #     description="Confidence score between 0 and 1 on the accuracy of the extraction."
+    # )
+    # @field_validator("confidence", mode="before")
+    # @classmethod
+    # def normalize_confidence(cls, v):
+    #     v = float(v)
+    #     if v > 1:
+    #         v = v / 100
+    #     return max(0.0, min(1.0, v))       # always tagged on the end of the file name
     needs_review: bool = False      # flagged True if confidence is low — routes to unprocessed folder
+
+    @model_validator(mode='after')
+    def flag_incomplete(self) -> 'Schema':
+        empty = {'', 'unknown', 'n/a', 'none', 'null'}
+        fields_to_check = [self.counterparty, self.helpful_phrase, self.brand, self.date]
+        if any(str(v).strip().lower() in empty for v in fields_to_check):
+            self.needs_review = True
+        return self

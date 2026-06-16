@@ -1,9 +1,12 @@
-import ollama
-import json
+import anthropic
 import sys
 import os
+import time
 import pdfplumber
 from pathlib import Path
+from dotenv import load_dotenv
+
+load_dotenv()
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -15,116 +18,151 @@ from sources_injestion.FileManager import DocumentRecord, DocumentSource
 
 from Schema import Schema
 
-#right down all the tools
 extra_context_tool = {
-    "type": "function",
-    "function": {
-        "name": "extra_context_tool",
-        "description": "Call this to get more content from the document when you need additional context to fill the schema.",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "page_number": {
-                    "type": "integer",
-                    "description": "The page to retrieve (starting from 1). For non-PDF documents this returns the next 4000 character chunk."
-                }
-            },
-            "required": ["page_number"]
-        }
+    "name": "extra_context_tool",
+    "description": "Call this to get more content from the document when you need additional context to fill the schema.",
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "page_number": {
+                "type": "integer",
+                "description": "The page to retrieve (starting from 1). For non-PDF documents this returns the next 4000 character chunk."
+            }
+        },
+        "required": ["page_number"]
     }
 }
 
 class AgenticManager:
     def __init__(self, source: DocumentSource):
-        #call the Baseclass so I don't have to individually call the children...!
-        self.source = source #stores the child obj
+        self.source = source
+        self.client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
 
     def process_all(self):
         for doc in self.source.load_documents():
             yield self.ai_extraction(doc)
 
+    def ai_extraction(self, doc: DocumentRecord) -> Schema:
+        text = doc.content
 
-    def ai_extraction(self, doc: DocumentRecord) -> Schema: 
-        #This returns a schema that the naming convention will parse together and rename the file...
-
-        text = doc.content #this should only be a page at first
-
-        #instructions for Ollama
         system_prompt = (
             "You are working for Minnesota Public Radio's Legal Department. "
             "You are responsible for searching through text and finding the metadata required to create a naming convention. "
             "If you are unable to parse ALL the structured/required schema from the text, you MUST call the extra_context_tool."
         )
+
         messages = [
-            {"role": "system", "content": system_prompt},
             {
                 "role": "user",
                 "content": (
+                    f"File name: {Path(doc.source_id).name}\n\n"
                     f"Extract contract metadata from this document:\n\n{text}\n\n"
                     "Conform to the schema as given in your format.\n\n"
                     "If you are unable to parse ALL the structured schema from the text "
                     "of the document you MUST call the extra_context_tool.\n\n"
                     "Here are some examples of what we are expecting...\n\n"
-                    #TODO
+                    "Berlin Minneapolis - Location Rental Agreement  - Nina Bernat 4.22.25 - YC (2025.4.17) v1.0 FE\n"
+                    "Charitable Adult Rides CARS - Standard Agreement - car donations - MPR (2025.4.10) v1.0 FE\n"
+                    "Jackson River LLC - Order Form SOW - Springboard LAist Modal embed - LAist (2025.4.8.) v1.0 FE\n"
+                    "HayesGiselle - Performance Artist Event and Recording Agreement - Amsterdam bar – the current (2025.4.10) v1.0 FE\n"
+                    "Boston Beer Company - Sponsorship Agreement - Tournament of Cheeseburgers - LAist (2025.5.15) v1.0 FE\n"
+                    "Bill.com - SaaS order form - Accounts Payable software - MPR Finance (2025.5.16) v1.0 FE"
                 )
             }
         ]
 
         current_page = 1
-        MAX_PAGES = 5  # don't read more than 5 pages before giving up
+        MAX_PAGES = 5
+        json_schema = {**Schema.model_json_schema(), "additionalProperties": False}
 
         while True:
-            response = ollama.chat(
-                model="gemma3",
+            response = self.client.messages.create(
+                model="claude-opus-4-8",
+                max_tokens=4096,
+                system=system_prompt,
+                tools=[extra_context_tool],
                 messages=messages,
-                format=Schema.model_json_schema(),
-                tools=[extra_context_tool]
+                output_config={"format": {"type": "json_schema", "schema": json_schema}}
             )
-            if response.message.tool_calls and current_page <= MAX_PAGES:
-                for tool_call in response.message.tool_calls:
-                    extra = self.extra_context(doc, current_page) #actually calling the tool and grabbing extra content
-                    current_page += 1  # always move forward — don't trust the model to track this
-                    # record model's tool call and our response back into the conversation
-                    messages.append({"role": "assistant", "content": response.message.content, "tool_calls": response.message.tool_calls})
-                    messages.append({"role": "tool", "content": extra, "name": "extra_context_tool"}) #adding the result of the tool call to the messages
-            else:
-                # model has enough (or hit page limit) — return the schema
-                return Schema.model_validate_json(response.message.content)
-        
-    def extra_context_tool(self, doc: DocumentRecord, page_number: int) -> str:
-    #code to call the next page of the document. feed back to ai_extraction, if still can't understand then go to the next page
+
+            tool_use_blocks = [b for b in response.content if b.type == "tool_use"]
+
+            if not tool_use_blocks:
+                # end_turn — response is already structured JSON
+                text_block = next(b for b in response.content if b.type == "text")
+                return Schema.model_validate_json(text_block.text)
+
+            # Handle tool calls
+            messages.append({"role": "assistant", "content": response.content})
+            tool_results = []
+            for tb in tool_use_blocks:
+                if current_page <= MAX_PAGES:
+                    print(f"    [TOOL] extra_context_tool called -> fetching page {current_page} of {Path(doc.source_id).name}")
+                    content = self.extra_context(doc, current_page)
+                    current_page += 1
+                else:
+                    print(f"    [LIMIT] Page limit reached for {Path(doc.source_id).name}")
+                    content = "Maximum pages reached. Use 'Unknown' for any fields you could not determine."
+
+                tool_results.append({
+                    "type": "tool_result",
+                    "tool_use_id": tb.id,
+                    "content": content
+                })
+
+            messages.append({"role": "user", "content": tool_results})
+
+    def extra_context(self, doc: DocumentRecord, page_number: int) -> str:
         ext = Path(doc.source_id).suffix.lower()
         if ext == ".pdf":
-                # PDFs get the actual next page
-                with pdfplumber.open(doc.source_id) as pdf:
-                    if page_number < len(pdf.pages):
-                        return pdf.pages[page_number].extract_text() or ""
-                    return ""
+            with pdfplumber.open(doc.source_id) as pdf:
+                if page_number < len(pdf.pages):
+                    return pdf.pages[page_number].extract_text() or ""
+                return ""
         else:
-            # everything else (including scanned/OCR'd docs) gets the next 4000 char chunk
             full_text = self.source.extract_text_from_file(doc.source_id)
             start = page_number * 4000
             return full_text[start:start + 4000]
 
-    
     def naming_convention(self, schema: Schema):
-        #The naming convention must be {Counterparty} - {AgreementType} - {Brand} ({YYYY-MM-DD}) ({Status}).{ext}
-        #use the schema object to contrsut the naming convention
-        return f"{schema.counterparty} - {schema.agreement} - {schema.brand} ({schema.date}) {schema.version}"
-    
+        return f"{schema.counterparty} - {schema.agreement_type} - {schema.helpful_phrase} - {schema.brand} {schema.date} v1.0 FE"
 
-    
+
+#testing suite
 if __name__ == '__main__':
 
-    print("Hello :') ")
     from sources_injestion.LocalFileSource import LocalFileSource
-    src = LocalFileSource('/Users/srikotala/Documents/projects/ContractRepo')
+
+    TEST_DIR = '/Users/srikotala/Documents/projects/testDocuments'
+    print(f"\n{'='*60}")
+    print(f"  LegaIAI Extraction Run")
+    print(f"  Source: {TEST_DIR}")
+    print(f"{'='*60}\n")
+
+    src = LocalFileSource(TEST_DIR)
     manager = AgenticManager(src)
-    for result in manager.process_all():
-        print(result)
 
-    # def confidence_check():
-    #     #call another LLM?
-    #     #how else can we do a confidence check?
+    success_count = 0
+    fail_count = 0
 
-    
+    for i, doc in enumerate(src.load_documents(), start=1):
+        print(f"[{i}] Processing: {doc.source_id}")
+        try:
+            result = manager.ai_extraction(doc)
+            success_count += 1
+            print(f"    Counterparty   : {result.counterparty}")
+            print(f"    Agreement Type : {result.agreement_type}")
+            print(f"    Helpful Phrase : {result.helpful_phrase}")
+            print(f"    Brand          : {result.brand}")
+            print(f"    Date           : {result.date}")
+            print(f"    Needs Review   : {result.needs_review}")
+            print(f"    -> Named       : {manager.naming_convention(result)}")
+        except Exception as e:
+            fail_count += 1
+            print(f"    ERROR: {type(e).__name__}: {e}")
+        print()
+        # time.sleep(3)
+
+    print(f"{'='*60}")
+    print(f"  Done. {success_count} succeeded, {fail_count} failed.")
+    print(f"{'='*60}\n")
