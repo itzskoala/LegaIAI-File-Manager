@@ -114,13 +114,14 @@ class AgenticManager:
     
 
     
-    if __name__ == 'main':
-        from LocalFileSource import LocalFileSource
-        src = LocalFileSource('/Users/srikotala/Documents/projects/ContractRepo')
-        manager = AgenticManager(src)
+if __name__ == '__main__':
 
-        for result in manager.process_all():
-            print(result)
+    print("Hello :') ")
+    from sources_injestion.LocalFileSource import LocalFileSource
+    src = LocalFileSource('/Users/srikotala/Documents/projects/ContractRepo')
+    manager = AgenticManager(src)
+    for result in manager.process_all():
+        print(result)
 
     # def confidence_check():
     #     #call another LLM?
