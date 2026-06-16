@@ -20,14 +20,26 @@ from Schema import Schema
 # we need yamal files/json strucutre 
 # going to try using Ollama/Claude?
 # 
-
-def extra_context():
-    #code to call the next page of the document. feed back to ai_extraction, if still can't understand then go to the next page
-    #
+        
 
 #right down all the tools
-extra_context_tool = [{"type": "function", "function": extra_context()}]
-
+extra_context_tool = {
+    "type": "function",
+    "function": {
+        "name": "extra_context_tool",
+        "description": "Call this to get more content from the document when you need additional context to fill the schema.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "page_number": {
+                    "type": "integer",
+                    "description": "The page to retrieve (starting from 1). For non-PDF documents this returns the next 4000 character chunk."
+                }
+            },
+            "required": ["page_number"]
+        }
+    }
+}
 #i could also give a serper.dev tool/internet lookup? maybe the tool could be the validiation somehow?
 
 class AgenticManager:
@@ -66,29 +78,53 @@ class AgenticManager:
             # as soon as you have all the info stop searching/scanning
             # partial scan, prime the AI where to look
             # 
-        text = doc.content
+        text = doc.content #this should only be a page at first
 
-        response = ollama.chat(
-            model="gemma3",
-            messages=[{
+        messages=[{
                 "role": "user",
                 "content": (
                     f"Extract contract metadata from this document:\n\n{text}\n\n"
-                    "Conform to the schema as given in your format"
-                    "If you are unable to parse ALL the structured schema from the text"
-                    "of the document you MUST call the extra_context_tool."
-
-                    "Here are some examples of what we are expecting..."
-                    ""
+                    "Conform to the schema as given in your format.\n\n"
+                    "If you are unable to parse ALL the structured schema from the text "
+                    "of the document you MUST call the extra_context_tool.\n\n"
+                    "Here are some examples of what we are expecting...\n\n"
+                    #TODO
                 )
-            }],
-            format=Schema.model_json_schema(),
-            tools=[extra_context_tool]
-        )
+            }]
+        
+        while True:
+            response = ollama.chat(
+                model="gemma3",
+                messages =messages,
+                format=Schema.model_json_schema(),
+                tools=[extra_context_tool()]
+            )
+            if response.message.tool_calls:
+                for tool_call in response.message.tool_calls:
+                    page_number = tool_call.function.arguments.get("page_number", 1)
+                    extra = self.extra_context(doc, page_number)
+            else:
+                # model has enough ____ return the schema
+                return Schema.model_validate_json(response.message.content)
+        
+    def extra_context(self, doc: DocumentRecord, page_number: int) -> str:
+    #code to call the next page of the document. feed back to ai_extraction, if still can't understand then go to the next page
+        ext = Path(doc.source_id).suffix.lower()
+        if ext == ".pdf":
+                # PDFs get the actual next page
+                with pdfplumber.open(doc.source_id) as pdf:
+                    if page_number < len(pdf.pages):
+                        return pdf.pages[page_number].extract_text() or ""
+                    return ""
+        else:
+            # everything else (including scanned/OCR'd docs) gets the next 4000 char chunk
+            full_text = self.source.extract_text_from_file(doc.source_id)
+            start = page_number * 4000
+            return full_text[start:start + 4000]
 
-
-
-    def naming_convention():
+    
+    def naming_convention(response):
+        
         #The naming convention must be {Counterparty} - {AgreementType} - {Brand} ({YYYY-MM-DD}) ({Status}).{ext}
         #use the schema object to contrsut the naming convention
         
@@ -96,12 +132,5 @@ class AgenticManager:
     # def confidence_check():
     #     #call another LLM?
     #     #how else can we do a confidence check?
-
-
-    
-
-    
-
-
 
     

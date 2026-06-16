@@ -55,6 +55,8 @@ class LocalFileSource(DocumentSource):
 
             try:
                 content = LocalFileSource.extract_text_from_file(str(file_path))
+                if file_path.suffix.lower() != ".pdf": #pdfs should be the full first page...!
+                    content = content[:4000]  # first 4000 chars for non-PDFs
                 yield DocumentRecord(
                     source_type="local_file",
                     source_id=str(file_path),
@@ -118,7 +120,7 @@ class LocalFileSource(DocumentSource):
     #https://www.geeksforgeeks.org/python/python-staticmethod-function/
     #this function is a utlity function so it doesn't need to modify the state of the class or instances
     #static methods are useful in situations where a function is logically related to a class but does not require access to instance-specific data
-    def extract_text_from_pdf(file_path: str) -> str:
+    def extract_text_from_pdf(file_path: str, max_pages: int = 1) -> str:
         """
         Extract text from a PDF.
         Uses pdfplumber for digital text; falls back to pytesseract on low-density pages.
@@ -126,7 +128,7 @@ class LocalFileSource(DocumentSource):
         final_pages = []
 
         with pdfplumber.open(file_path) as pdf:
-            for i, page in enumerate(pdf.pages):
+            for i, page in enumerate(pdf.pages[:max_pages]):
                 text = page.extract_text() or ""
 
                 if len(text.strip()) < LocalFileSource.TEXT_DENSITY_THRESHOLD:
