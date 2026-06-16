@@ -1,3 +1,4 @@
+from typing import Union, List
 from pydantic import BaseModel, Field
 
 #for contracts but keep in mind that every document can be different doesn't fit this schema
@@ -9,7 +10,7 @@ class Schema(BaseModel):
                     "Avoid commonly used acronyms used in our industry unless obvious, e.g NPR. "
                     "For individuals, use LastNameFirstName."
     )
-    agreement_type: str | list[str] = Field(
+    agreement_type: Union[str, List[str]] = Field(
         description="This is almost always the title at the top of the agreement. "
                     "Sometimes two agreements are combined into one document, usually a governing agreement "
                     "and sub-agreement such as a master services agreement and order form, or SOW. "

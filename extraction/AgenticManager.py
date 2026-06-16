@@ -1,26 +1,19 @@
 import ollama
 import json
+import sys
+import os
+import pdfplumber
+from pathlib import Path
 
-from sources_ingestion.FileManager import DocumentRecord, DocumentSource
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from sources_injestion.FileManager import DocumentRecord, DocumentSource
 
 # from LocalFileSource import LocalFileSource
 # from EmailFileSource import EmailFileSource
 # from SharepointFileSource import SharepointFileSource
 
 from Schema import Schema
-
-#AI portion
-# this will take in strucutred output the Document Record obj
-# it will read the entire obj? Or just the text of the documnet?
-# probably txt for now, everyhting else I can hard code
-# do I need another strucutred output for what the AI will give?
-# I should be able to read just the file name and create a naming convention???
-# pontentially this is true???
-
-# we need yamal files/json strucutre 
-# going to try using Ollama/Claude?
-# 
-        
 
 #right down all the tools
 extra_context_tool = {
@@ -40,7 +33,6 @@ extra_context_tool = {
         }
     }
 }
-#i could also give a serper.dev tool/internet lookup? maybe the tool could be the validiation somehow?
 
 class AgenticManager:
     def __init__(self, source: DocumentSource):
@@ -52,35 +44,20 @@ class AgenticManager:
             yield self.ai_extraction(doc)
 
 
-    def ai_extraction(self, doc: DocumentRecord) -> Schema:
-             #for when we can't fall back and need to extract document details...
-        #most times we can tell where to put a document based off of its details 
-        
-        #or maybe we just actually have to do this for each doc...?
-        #how do we name an excell file? 
-            #-> The lowkey just use the BaseModel fields to piece it together ...
-        #
+    def ai_extraction(self, doc: DocumentRecord) -> Schema: 
+        #This returns a schema that the naming convention will parse together and rename the file...
 
-        #think file at a time
-        #I have all the text strcutred as text...from the pydantic object
-        # my only goal is to name the file
-        # name first, then strcutre the folders? hmmmm....Yeah I think that makes sense
-        # folder strucutre seems very basic 
-        # how do we do this 
-        # read the file with AI, ollama/claude fills in the fields accordingly 
-        # we need to verify? How? 
-        # concerns: reading the whole file for a naming convention feels like its too much?
-            # -> Is there an easier way to do this? 
-            # -> what do the job requiremnts say? vs. what do I think is better? 
-            # read a documnet to extract data to conform to a pydantic/strcutred output ...
-            # is there a way to do this without reading everything? Portions? 
-            # how to search for info with reading the entrie doc?
-            # as soon as you have all the info stop searching/scanning
-            # partial scan, prime the AI where to look
-            # 
         text = doc.content #this should only be a page at first
 
-        messages=[{
+        #instructions for Ollama
+        system_prompt = (
+            "You are working for Minnesota Public Radio's Legal Department. "
+            "You are responsible for searching through text and finding the metadata required to create a naming convention. "
+            "If you are unable to parse ALL the structured/required schema from the text, you MUST call the extra_context_tool."
+        )
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {
                 "role": "user",
                 "content": (
                     f"Extract contract metadata from this document:\n\n{text}\n\n"
@@ -90,24 +67,31 @@ class AgenticManager:
                     "Here are some examples of what we are expecting...\n\n"
                     #TODO
                 )
-            }]
-        
+            }
+        ]
+
+        current_page = 1
+        MAX_PAGES = 5  # don't read more than 5 pages before giving up
+
         while True:
             response = ollama.chat(
                 model="gemma3",
-                messages =messages,
+                messages=messages,
                 format=Schema.model_json_schema(),
-                tools=[extra_context_tool()]
+                tools=[extra_context_tool]
             )
-            if response.message.tool_calls:
+            if response.message.tool_calls and current_page <= MAX_PAGES:
                 for tool_call in response.message.tool_calls:
-                    page_number = tool_call.function.arguments.get("page_number", 1)
-                    extra = self.extra_context(doc, page_number)
+                    extra = self.extra_context(doc, current_page) #actually calling the tool and grabbing extra content
+                    current_page += 1  # always move forward — don't trust the model to track this
+                    # record model's tool call and our response back into the conversation
+                    messages.append({"role": "assistant", "content": response.message.content, "tool_calls": response.message.tool_calls})
+                    messages.append({"role": "tool", "content": extra, "name": "extra_context_tool"}) #adding the result of the tool call to the messages
             else:
-                # model has enough ____ return the schema
+                # model has enough (or hit page limit) — return the schema
                 return Schema.model_validate_json(response.message.content)
         
-    def extra_context(self, doc: DocumentRecord, page_number: int) -> str:
+    def extra_context_tool(self, doc: DocumentRecord, page_number: int) -> str:
     #code to call the next page of the document. feed back to ai_extraction, if still can't understand then go to the next page
         ext = Path(doc.source_id).suffix.lower()
         if ext == ".pdf":
@@ -123,11 +107,20 @@ class AgenticManager:
             return full_text[start:start + 4000]
 
     
-    def naming_convention(response):
-        
+    def naming_convention(self, schema: Schema):
         #The naming convention must be {Counterparty} - {AgreementType} - {Brand} ({YYYY-MM-DD}) ({Status}).{ext}
         #use the schema object to contrsut the naming convention
-        
+        return f"{schema.counterparty} - {schema.agreement} - {schema.brand} ({schema.date}) {schema.version}"
+    
+
+    
+    if __name__ == 'main':
+        from LocalFileSource import LocalFileSource
+        src = LocalFileSource('/Users/srikotala/Documents/projects/ContractRepo')
+        manager = AgenticManager(src)
+
+        for result in manager.process_all():
+            print(result)
 
     # def confidence_check():
     #     #call another LLM?
