@@ -1,0 +1,102 @@
+https://www.youtube.com/watch?v=G1lJeEIl05o
+Use generators in python to iterate over large files
+
+
+https://www.youtube.com/watch?v=6A7d6Am5mck&t=123s
+#CLAUDE COWORK!?
+
+
+
+https://office365itpros.com/2026/04/08/microsoft-365-connector-for-claude/
+
+Thooughts for AI portion/pipline
+
+Text parsing must be more accurate...is there a way to parse a document without AI
+Think location of items that are needed...
+Images? Needs more processing power than compared to using simple text...
+The first page will tell you...
+    -> Brand
+    -> Counterparty
+    -> Date? Probably the Effective Date 
+        -> have to the find the execuative date at the bottom by the signatures (more than likey...) 
+            -> THIS IS ALWAYS THE PREFERRED, DON'T FORGET THIS ONE...
+    -> Version Number: keep at 1.0V for now, 
+        -> later change how to handle the case of sending this to sharepoint 
+        and being able to see if there are any previous versions availible 
+    -> Helpful phrase -> Probably can be done from the first page (assuming), maybe test this...
+        -> Confidence checker/iterator could check if the helpful statement is actually good/helpful and then potentially also ask for more context via extra_content_tool/functions
+
+Then with this logic, I really only need to look at extra pages 
+    when I need 2 things
+    if extra content is called 
+New Idea: if the doucment isn't a text document, like a csv/excel file then don't even bother parsing it???? Hmmmmm....or give it limited capbilities 
+
+    Super Important: determine if a contract is EXECUTED 
+        -> need to find where the signatures are located 
+        -> How to determine if everybody has signed a document?
+            -> if every line has a name .... 
+        -> HMMM FOR NOW just assume that every file sent to the email adress is def EXECUTED
+        -> another question: how to download ATTACHMENTS from MS outlook to a local machine???? 
+
+What AI will I use? does every doucment really need an API call? 
+-> is there a way to batch documents?
+-> do we even need api/AI to do this? 
+-> we really are just parsing important information 
+
+Best models I can use:
+Claude Opus/Haiku is must more efficent
+Switching between models would be very Effective also...
+#TODO more playing with Ollama just because it's free 
+What is the best Ollama Model I can use? 
+
+#How do I make the program run faster?
+-> Parell processing
+-> Schedule with Claude Cowork? 
+
+
+#TODO add a Strategy Pattern to the input stategies (.pdf, .docx, ect......)
+- Make a smarter AI parser...! 
+- Look into MS Azure Power Functions
+- Testing with cheaper models
+
+
+Let's now talk about the pipeline for the sorting
+-> Actually thankfully folder organization feels simple
+I already know the convention of what I'm going for 
+
+Brand, Counterparty, Agreements 
+So just check 
+    if brand folder has not been created:
+        then create a new brand folder
+        else then go into that brand folder
+            does agreement folder exist (where does agreement come from? can I just get this from the naming convention itself?)
+
+Then finally just upload that into Sharepoint,
+but only a folder/change at a time
+Think like uplaoding to GitHub...!
+
+
+Another something to think about:
+    is it better to process document 1 at at time or in chunks/batches.........
+ 
+What is the quickest way to run this program???? at the highest accuracy and precision?  Good question! 
+
+
+Record documnetation/
+
+I keep being told to make the entire project modular
+
+
+
+Makee sure I"m listening/followign the Core Pirnciples of Modularity
+-> High cohestion
+-> Loose Coupling
+-> Encpauslaiton and Information Hiding 
+    -> Another question: What will the interface look like? Sometime people can see, or just a program that always runs/is on a schedule....??
+
+
+
+Today:
+Focus on setting up meetings...SWE, put stuff in calender
+Think about Telemundo...
+Set up more things via Cowork
