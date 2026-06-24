@@ -1,9 +1,6 @@
 from typing import Union, List
 from pydantic import BaseModel, Field, field_validator, model_validator
 
-#for contracts but keep in mind that every document can be different doesn't fit this schema
-#QUESTION: DO ALL DOCUMENTS HAVE THE SAME SCHEMA!?
-
 class Schema(BaseModel):
     counterparty: str = Field(
         description="This should be the full legal entity name as stated in the preamble of the agreement. "
@@ -31,17 +28,6 @@ class Schema(BaseModel):
         description="The date of the document in YYYY-MM-DD format."
         #TODO: this is incorrect
     )
-    # confidence: float = Field(
-    #     ge=0, le=1,
-    #     description="Confidence score between 0 and 1 on the accuracy of the extraction."
-    # )
-    # @field_validator("confidence", mode="before")
-    # @classmethod
-    # def normalize_confidence(cls, v):
-    #     v = float(v)
-    #     if v > 1:
-    #         v = v / 100
-    #     return max(0.0, min(1.0, v))       # always tagged on the end of the file name
     needs_review: bool = False      # flagged True if confidence is low — routes to unprocessed folder
 
     @model_validator(mode='after')
@@ -51,3 +37,26 @@ class Schema(BaseModel):
         if any(str(v).strip().lower() in empty for v in fields_to_check):
             self.needs_review = True
         return self
+
+
+# # Separate from Schema on purpose — this comes from a vision model looking
+# # at the actual signature page image, not from text extraction, and the
+# # "date" here means execution date specifically, which can be different from
+# # Schema.date (which is murkier, see the TODO above).
+# class SignatureCheck(BaseModel):
+#     is_signature_page: bool = Field(
+#         description="True if the page shown actually contains a signature block."
+#     )
+#     signed: bool = Field(
+#         description="True if there is a visible signature (handwritten or typed name) present."
+#     )
+#     execution_date: str | None = Field(
+#         default=None,
+#         description="The date written near the signature, if any. Null if not visible."
+#     )
+
+#     @model_validator(mode='after')
+#     def clear_date_if_unsigned(self) -> 'SignatureCheck':
+#         if not self.signed:
+#             self.execution_date = None
+#         return self

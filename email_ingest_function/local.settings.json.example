@@ -1,0 +1,15 @@
+{
+  "IsEncrypted": false,
+  "Values": {
+    "FUNCTIONS_WORKER_RUNTIME": "python",
+    "AzureWebJobsStorage": "<connection string for the storage account this Function uses for its own state/checkpoint>",
+
+    "GRAPH_TENANT_ID": "<Azure AD tenant ID>",
+    "GRAPH_CLIENT_ID": "<App registration (client) ID>",
+    "GRAPH_CLIENT_SECRET": "<App registration client secret>",
+    "MAILBOX_ADDRESS": "<the shared mailbox this polls, e.g. legal-contracts@yourdomain.org>",
+
+    "ATTACHMENTS_CONTAINER": "incoming-attachments",
+    "CHECKPOINT_CONTAINER": "function-state"
+  }
+}
